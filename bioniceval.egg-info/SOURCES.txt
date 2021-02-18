@@ -1,0 +1,9 @@
+README.md
+setup.py
+bioniceval/main.py
+bioniceval.egg-info/PKG-INFO
+bioniceval.egg-info/SOURCES.txt
+bioniceval.egg-info/dependency_links.txt
+bioniceval.egg-info/entry_points.txt
+bioniceval.egg-info/requires.txt
+bioniceval.egg-info/top_level.txt
