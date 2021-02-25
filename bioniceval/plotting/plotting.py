@@ -9,6 +9,7 @@ from ..state import State
 PALETTE = sns.color_palette("BuPu")
 EDGE_WIDTH = 1.25
 EDGE_COLOUR = "#666666"
+CAPSIZE = 0.05
 
 
 def plot_coannotation():
@@ -20,6 +21,19 @@ def plot_coannotation():
     out_path = State.result_path / Path(f"{State.config_name}_coannotation.png")
     plot_bars(
         results, "Standard", "Average Precision", "Dataset", "Co-annotation Evaluation", out_path
+    )
+
+
+def plot_module_detection():
+    results: pd.DataFrame = State.module_detection_evaluations
+    out_path = State.result_path / Path(f"{State.config_name}_module_detection.png")
+    plot_bars(
+        results,
+        "Standard",
+        "Module Match Score (AMI)",
+        "Dataset",
+        "Module Detection Evaluation",
+        out_path,
     )
 
 
@@ -35,6 +49,7 @@ def plot_bars(df: pd.DataFrame, x: str, y: str, hue: str, title: str, out_path: 
         palette=PALETTE,
         linewidth=EDGE_WIDTH,
         edgecolor=EDGE_COLOUR,
+        capsize=CAPSIZE,
     )
     sns.despine(offset={"left": 10})
     ax.grid(axis="y")

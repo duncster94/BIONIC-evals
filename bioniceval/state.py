@@ -23,3 +23,4 @@ class State:
     ]  # shared genes if `consolidation` == "intersection", all genes otherwise
 
     coannotation_evaluations: pd.DataFrame
+    module_detection_evaluations: pd.DataFrame

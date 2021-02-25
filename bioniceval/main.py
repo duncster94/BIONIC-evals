@@ -7,6 +7,7 @@ from .utils.process_config import process_config
 from .utils.file_utils import import_datasets
 
 from .evals.coannotation import coannotation_eval
+from .evals.module_detection import module_detection_eval
 
 app = typer.Typer()
 
@@ -30,7 +31,7 @@ def evaluate_task(task: str):
     if task == "coannotation":
         coannotation_eval()
     elif task == "module_detection":
-        pass
+        module_detection_eval()
     elif task == "function_prediction":
         pass
     else:
