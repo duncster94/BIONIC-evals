@@ -37,6 +37,19 @@ def plot_module_detection():
     )
 
 
+def plot_function_prediction():
+    results: pd.DataFrame = State.function_prediction_evaluations
+    out_path = State.result_path / Path(f"{State.config_name}_function_prediction.png")
+    plot_bars(
+        results,
+        "Standard",
+        "Function Prediction Score (Micro F1)",
+        "Dataset",
+        "Gene Function Prediction Evaluation",
+        out_path,
+    )
+
+
 def plot_bars(df: pd.DataFrame, x: str, y: str, hue: str, title: str, out_path: Path):
     plt.clf()
     plt.figure(figsize=(6, 4))

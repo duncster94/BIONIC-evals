@@ -8,6 +8,7 @@ from .utils.file_utils import import_datasets
 
 from .evals.coannotation import coannotation_eval
 from .evals.module_detection import module_detection_eval
+from .evals.function_prediction import function_prediction_eval
 
 app = typer.Typer()
 
@@ -33,7 +34,7 @@ def evaluate_task(task: str):
     elif task == "module_detection":
         module_detection_eval()
     elif task == "function_prediction":
-        pass
+        function_prediction_eval()
     else:
         raise NotImplementedError(f"Task '{task}' has not been implemented.")
 
