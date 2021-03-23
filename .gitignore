@@ -1,3 +1,10 @@
 standards/*
 results/*
-__pycache__
+**/__pycache__
+.vscode
+bioniceval.egg-info/*
+bioniceval/config/*
+bioniceval/datasets/*
+bioniceval/results/*
+bioniceval/standards/*
+!**/.gitkeep
