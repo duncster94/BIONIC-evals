@@ -8,3 +8,5 @@ bioniceval/datasets/*
 bioniceval/results/*
 bioniceval/standards/*
 !**/.gitkeep
+.venv/
+dataprocessing/
