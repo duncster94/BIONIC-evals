@@ -32,6 +32,7 @@ def consolidate_datasets(
     features: Optional[Dict[str, pd.DataFrame]] = [],
     networks: Optional[Dict[str, nx.Graph]] = [],
 ):
+    assert features or networks, "No features and/or networks specified, check config file"
     consolidation = State.consolidation
 
     # compute consolidated genes
@@ -46,7 +47,8 @@ def consolidate_datasets(
 
     features = consolidate_features(features, consolidated_genes)
     networks = consolidate_networks(networks, consolidated_genes)
-    assert list(list(features.values())[0].index) == list(list(networks.values())[0].nodes())
+    if features and networks:
+        assert list(list(features.values())[0].index) == list(list(networks.values())[0].nodes())
 
     State.features = features
     State.networks = networks
