@@ -1,4 +1,5 @@
 import json
+import os
 from typing import List
 
 from ..state import State
@@ -30,3 +31,4 @@ def process_config(exclude_tasks: List[str], exclude_standards: List[str]):
                 State.plot = value
             if key == "result_path":
                 State.result_path = value
+                os.makedirs(State.result_path, exist_ok=True)
