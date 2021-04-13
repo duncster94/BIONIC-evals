@@ -10,3 +10,5 @@ bioniceval/standards/*
 !**/.gitkeep
 .venv/
 dataprocessing/
+x.py
+y.py

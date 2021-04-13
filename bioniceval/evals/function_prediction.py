@@ -18,6 +18,11 @@ from ..state import State
 from ..utils.file_utils import consolidate_features, consolidate_networks
 from ..plotting.plotting import plot_function_prediction
 
+import torch
+import torch.nn as nn
+from skorch import NeuralNet
+from skmultilearn.model_selection import iterative_train_test_split
+
 
 def function_prediction_eval():
     """Performs gene function prediction on the feature and networks datasets."""
@@ -107,7 +112,12 @@ def evaluate_features(features: pd.DataFrame, standard: pd.DataFrame, config: di
     )
 
     # evaluate features
-    scores = core_eval(features, standard, config)
+    if config['classification_model'] == 'ff':
+        scores = diagnostic_classification(features, standard, config)
+    elif config['classification_model'] == 'svm':
+        scores = core_eval(features, standard, config)
+    else: 
+        raise NotImplementedError
     return scores
 
 
@@ -163,3 +173,105 @@ def core_eval(dataset: pd.DataFrame, standard: pd.DataFrame, config: dict) -> Li
         scores.append(micro_f1)
 
     return scores
+
+
+def diagnostic_classification(dataset: pd.DataFrame, standard: pd.DataFrame, config: dict) -> List[float]:
+    # make parameter space from config
+    param_grid = config["params"]
+    # {
+    #     "lr": [1e-1, 5e-2, 1e-2],
+    #     "batch_size": [64, 128],
+    #     "module__num_hidden_layers": [0, 1],
+    #     "module__hidden_dim": [50, 100, 200],
+    #     "module__dropout": [0.0, 0.1, 0.2],
+    # }
+
+    # param_grid = {
+    #     "lr": [1e-1, 5e-2, 1e-2],
+    #     "batch_size": [64, 128],
+    #     "module__num_hidden_layers": [0, 1],
+    #     "module__hidden_dim": [50, 100, 200],
+    #     "module__dropout": [0.0, 0.1, 0.2],
+    # }
+
+    scores = []
+
+    for trial in range(config["trials"]):
+
+        np.random.seed(4242 * trial)
+        torch.manual_seed(4242 * trial)
+
+        X_train, y_train, X_test, y_test = iterative_train_test_split(
+                dataset.values,
+                standard.values,
+                test_size=config["test_size"]
+            )
+
+        embedding_dim = X_train.shape[-1]
+        num_classes = y_train.shape[-1]
+
+        criterion = nn.BCEWithLogitsLoss
+        predict_nonlinearity = (lambda x: (torch.sigmoid(x) >= 0.5).float())
+
+        estimator = NeuralNet(
+            module=MLP,
+            criterion=criterion,
+            optimizer=torch.optim.Adam,
+            max_epochs=10,
+            train_split=None,
+            predict_nonlinearity=predict_nonlinearity,
+            module__embedding_dim=embedding_dim,
+            module__num_classes=num_classes,
+        )
+
+        model = GridSearchCV(
+            estimator=estimator,
+            param_grid=param_grid,
+            cv=config['folds'],
+            n_jobs=9,
+            verbose=1,
+            scoring="f1_micro",
+            refit="f1_micro",
+        )
+        (X_train, X_test, y_train, y_test) = (
+            X_train.astype(np.float32),
+            X_test.astype(np.float32),
+            y_train.astype(np.float32),
+            y_test.astype(np.float32)
+        )
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        micro_f1 = f1_score(y_test, y_pred, average="micro")
+        scores.append(micro_f1)
+
+    return scores
+
+
+
+
+class MLP(nn.Module):
+    """A simple feed-forward neural network."""
+    def __init__(
+        self,
+        embedding_dim: int,
+        num_classes: int,
+        num_hidden_layers: int = 1,
+        hidden_dim: int = 100,
+        dropout: float = 0.1,
+    ):
+        super().__init__()
+
+        if num_hidden_layers == 0:
+            self.model = nn.Sequential(
+                nn.Linear(embedding_dim, num_classes),
+            )
+        else:
+            self.model = nn.Sequential(
+                nn.Linear(embedding_dim, hidden_dim),
+                nn.Dropout(dropout),
+                nn.ReLU(),
+                nn.Linear(hidden_dim, num_classes),
+            )
+
+    def forward(self, X, **kwargs):
+        return self.model(X)
