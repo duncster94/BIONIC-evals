@@ -14,8 +14,8 @@ bioniceval/datasets/*
 bioniceval/results/*
 
 bioniceval/standards/*
-!bioniceval/standards/test_cluster_standard.pickle
+!bioniceval/standards/test_module_standard.pickle
 !bioniceval/standards/test_function_standard.csv
-!bioniceval/standards/test_standard.txt
+!bioniceval/standards/test_coannotation_standard.txt
 
 !**/.gitkeep
