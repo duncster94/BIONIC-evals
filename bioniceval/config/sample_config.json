@@ -17,27 +17,13 @@
         {
             "name": "Test Coannotation Standard",
             "task": "coannotation",
-            "path": "bioniceval/standards/test_standard.txt",
+            "path": "bioniceval/standards/test_coannotation_standard.txt",
             "delimiter": " "
         },
         {
             "name": "Test Cluster Standard",
             "task": "module_detection",
-            "path": "bioniceval/standards/test_cluster_standard.pickle",
-            "samples": 10,
-            "methods": [
-                "average",
-                "complete"
-            ],
-            "metrics": [
-                "cosine"
-            ],
-            "thresholds": 10
-        },
-        {
-            "name": "Test Cluster Standard 2",
-            "task": "module_detection",
-            "path": "bioniceval/standards/test_cluster_standard.pickle",
+            "path": "bioniceval/standards/test_module_standard.pickle",
             "samples": 10,
             "methods": [
                 "average",
