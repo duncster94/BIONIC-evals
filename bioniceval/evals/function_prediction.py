@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Dict, Union, List
 from collections import defaultdict
@@ -68,17 +69,13 @@ def function_prediction_eval():
 
 def import_function_prediction_standard(standard: Dict[str, Union[str, Path]]) -> pd.DataFrame:
 
-    standard = pd.read_csv(standard["path"], sep=standard["delimiter"], header=None)
-
-    # construct dictionary from standard
-    standard_dict: Dict[str, List[str]] = defaultdict(list)
-    for _, gene, label in standard.itertuples():
-        standard_dict[gene].append(label)
+    with Path(standard["path"]).open("r") as f:
+        standard = json.load(f)
 
     # map class labels to multi-hot encodings
     mlb = MultiLabelBinarizer()
-    multi_hot_encoding = mlb.fit_transform(list(standard_dict.values()))
-    standard = pd.DataFrame(multi_hot_encoding, index=list(standard_dict.keys()))
+    multi_hot_encoding = mlb.fit_transform(list(standard.values()))
+    standard = pd.DataFrame(multi_hot_encoding, index=list(standard.keys()))
     return standard
 
 

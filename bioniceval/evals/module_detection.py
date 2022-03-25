@@ -1,5 +1,5 @@
+import json
 import random
-import pickle
 from functools import reduce
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
@@ -77,8 +77,8 @@ def module_detection_eval():
 
 
 def import_module_detection_standard(standard: Dict[str, Any]) -> Dict[str, List[str]]:
-    with Path(standard["path"]).open("rb") as f:
-        standard = pickle.load(f)
+    with Path(standard["path"]).open("r") as f:
+        standard = json.load(f)
         return standard
 
 

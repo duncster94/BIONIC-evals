@@ -1,4 +1,0 @@
-gene1 gene2 0.5
-gene1 gene3 0.6
-gene2 gene3 1.0
-gene3 gene5 0.8
