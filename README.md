@@ -1,5 +1,5 @@
 # BIONIC-evals
-Evaluation library for [BIONIC](https://github.com/bowang-lab/BIONIC). This library contains code to reproduce the co-annotation prediction, module detection, and gene function prediction evaluations from Fig. 2a and Fig. 3a.
+Evaluation library for [BIONIC](https://github.com/bowang-lab/BIONIC). This library contains code to reproduce the co-annotation prediction, module detection, and gene function prediction evaluations from Fig. 2a, 3a, 4 and 5.
 
 **NOTE:** The module detection and gene function prediction evaluations take a considerable amount of time to complete (on the order of 10s of hours). This can be sped up with multiprocessing. If you'd like me to implement this functionality, please open an [issue](https://github.com/duncster94/BIONIC-evals/issues).
 
