@@ -1,5 +1,7 @@
+import json
+import multiprocessing
+import os
 import random
-import pickle
 from functools import reduce
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
@@ -10,7 +12,7 @@ import pandas as pd
 import networkx as nx
 from scipy.spatial.distance import pdist
 from scipy.cluster.hierarchy import linkage, fcluster, maxdists
-from sklearn.metrics import adjusted_mutual_info_score
+from sklearn.metrics import adjusted_mutual_info_score, adjusted_rand_score
 
 from ..state import State
 from ..utils.file_utils import consolidate_features, consolidate_networks
@@ -18,7 +20,6 @@ from ..plotting.plotting import plot_module_detection
 
 
 def module_detection_eval():
-
     # keep track of evaluations from all standards
     evaluations = []
 
@@ -43,31 +44,24 @@ def module_detection_eval():
         # invert `standard` dictionary to make sampling more efficient
         inverted_standard = invert_standard(standard)
 
-        # evaluate feature sets and networks
-        # evaluations = defaultdict(list)
-        for i in range(config_standard["samples"]):
-
-            # create sampled standard
-            sampled_genes, labels = sample_standard(standard, inverted_standard)
-
-            # reduce features and networks
-            features_ = consolidate_features(features, sampled_genes)
-            networks_ = consolidate_networks(networks, sampled_genes)
-
-            for name, feat in features_.items():
-                ami_score = evaluate_features(feat, labels, config_standard)
-                evaluations.append([standard_name, name, ami_score])
-
-            for name, network in networks_.items():
-                ami_score = evaluate_network(network, labels, config_standard)
-                evaluations.append([standard_name, name, ami_score])
+        # evaluate features and networks using multiprocessing
+        pool = multiprocessing.Pool(os.cpu_count())
+        inp = [standard, inverted_standard, features, networks, config_standard, standard_name]
+        # each process feeds the required input parameters to do_eva()
+        results = [pool.apply_async(do_eva, (inp,)) for i in range(config_standard["samples"])]
+        # close the pool and wait for the results
+        pool.close()
+        pool.join()
+        # take the results and store into the results table
+        for res in [res.get() for res in results]:
+            evaluations.extend(res)
 
     evaluations = pd.DataFrame(
-        evaluations, columns=["Standard", "Dataset", "Module Match Score (AMI)"]
+        evaluations, columns=["Standard", "Dataset", "Module Match Score (AMI)", "Adjusted Rand Index(RI)"]
     )
     State.module_detection_evaluations = evaluations
 
-    # save results
+    # output results
     evaluations.to_csv(
         State.result_path / Path(f"{State.config_name}_module_detection.tsv"), sep="\t"
     )
@@ -77,8 +71,8 @@ def module_detection_eval():
 
 
 def import_module_detection_standard(standard: Dict[str, Any]) -> Dict[str, List[str]]:
-    with Path(standard["path"]).open("rb") as f:
-        standard = pickle.load(f)
+    with Path(standard["path"]).open("r") as f:
+        standard = json.load(f)
         return standard
 
 
@@ -101,7 +95,7 @@ def invert_standard(standard: Dict[str, List[str]]) -> Dict[str, List[str]]:
 
 
 def sample_standard(
-    standard: Dict[str, List[str]], inverted_standard: Dict[str, List[str]]
+        standard: Dict[str, List[str]], inverted_standard: Dict[str, List[str]]
 ) -> Tuple[List[str], List[int]]:
     """Subsamples the modules in the standard to ensure the resulting module set has
     no overlapping modules (this allows clustering metrics like AMI to be used).
@@ -146,6 +140,7 @@ def sample_standard(
 def evaluate_features(features: pd.DataFrame, labels: List[int], config: Dict[str, Any]) -> float:
     # record best AMI score
     best_score = 0
+    best_rand = 0
 
     # iterate over parameter combinations and identify best scoring module set and record score
     for method in config["methods"]:
@@ -159,15 +154,18 @@ def evaluate_features(features: pd.DataFrame, labels: List[int], config: Dict[st
             for t in np.linspace(0, np.max(maxdists(link)), num=config["thresholds"]):
                 cluster_labels = fcluster(link, t)
                 score = adjusted_mutual_info_score(labels, cluster_labels)
+                rand = adjusted_rand_score(labels, cluster_labels)
                 if score > best_score:
                     best_score = score
-
-    return best_score
+                if rand > best_rand:
+                    best_rand = rand
+    return [best_score, best_rand]
 
 
 def evaluate_network(network: nx.Graph, labels: List[int], config: Dict[str, Any]) -> float:
     # record best AMI score
     best_score = 0
+    best_rand = 0
 
     # create adjacency matrix from network and take reciprocal (distances instead of similarities)
     adjacency = nx.to_pandas_adjacency(network).fillna(0)
@@ -186,7 +184,31 @@ def evaluate_network(network: nx.Graph, labels: List[int], config: Dict[str, Any
             for t in np.linspace(0, np.max(maxdists(link)), num=config["thresholds"]):
                 cluster_labels = fcluster(link, t)
                 score = adjusted_mutual_info_score(labels, cluster_labels)
+                rand = adjusted_rand_score(labels, cluster_labels)
                 if score > best_score:
                     best_score = score
+                if rand > best_rand:
+                    best_rand = rand
 
-    return best_score
+    return [best_score, best_rand]
+
+
+def do_eva(inp):
+    # main evaluation function
+    evaluations = []
+    standard, inverted_standard, features, networks, config_standard, standard_name = inp
+    # create sampled standard
+    sampled_genes, labels = sample_standard(standard, inverted_standard)
+
+    # reduce features and networks
+    features_ = consolidate_features(features, sampled_genes)
+    networks_ = consolidate_networks(networks, sampled_genes)
+
+    for name, feat in features_.items():
+        ami_score = evaluate_features(feat, labels, config_standard)
+        evaluations.append([standard_name, name, ami_score[0], ami_score[1]])
+
+    for name, network in networks_.items():
+        ami_score = evaluate_network(network, labels, config_standard)
+        evaluations.append([standard_name, name, ami_score[0], ami_score[1]])
+    return evaluations

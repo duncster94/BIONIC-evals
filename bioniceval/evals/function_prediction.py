@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Dict, Union, List
 from collections import defaultdict
@@ -45,15 +46,16 @@ def function_prediction_eval():
         for name, feat in features.items():
             scores = evaluate_features(feat, standard, config_standard)
             for score in scores:
-                evaluations.append([config_standard["name"], name, score])
+                evaluations.append([config_standard["name"], name, score[0], score[1], score[2]])
 
         for name, net in networks.items():
             scores = evaluate_network(net, standard, config_standard)
             for score in scores:
-                evaluations.append([config_standard["name"], name, score])
+                evaluations.append([config_standard["name"], name, score[0], score[1], score[2]])
 
     evaluations = pd.DataFrame(
-        evaluations, columns=["Standard", "Dataset", "Function Prediction Score (Micro F1)"]
+        evaluations, columns=["Standard", "Dataset", "Accuracy", "Macro F1",
+                              "Micro F1"]
     )
     State.function_prediction_evaluations = evaluations
 
@@ -68,17 +70,13 @@ def function_prediction_eval():
 
 def import_function_prediction_standard(standard: Dict[str, Union[str, Path]]) -> pd.DataFrame:
 
-    standard = pd.read_csv(standard["path"], sep=standard["delimiter"], header=None)
-
-    # construct dictionary from standard
-    standard_dict: Dict[str, List[str]] = defaultdict(list)
-    for _, gene, label in standard.itertuples():
-        standard_dict[gene].append(label)
+    with Path(standard["path"]).open("r") as f:
+        standard = json.load(f)
 
     # map class labels to multi-hot encodings
     mlb = MultiLabelBinarizer()
-    multi_hot_encoding = mlb.fit_transform(list(standard_dict.values()))
-    standard = pd.DataFrame(multi_hot_encoding, index=list(standard_dict.keys()))
+    multi_hot_encoding = mlb.fit_transform(list(standard.values()))
+    standard = pd.DataFrame(multi_hot_encoding, index=list(standard.keys()))
     return standard
 
 
@@ -156,10 +154,10 @@ def core_eval(dataset: pd.DataFrame, standard: pd.DataFrame, config: dict) -> Li
 
         y_pred = csr_matrix(model.predict(X_test))
         y_test = csr_matrix(y_test)
-        # acc = f1_score(y_test, y_pred, average="samples")
-        # macro_f1 = f1_score(y_test, y_pred, average="macro")
+        acc = f1_score(y_test, y_pred, average="samples")
+        macro_f1 = f1_score(y_test, y_pred, average="macro")
         micro_f1 = f1_score(y_test, y_pred, average="micro")
 
-        scores.append(micro_f1)
+        scores.append([acc, macro_f1, micro_f1])
 
     return scores
