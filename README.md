@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/340116033.svg)](https://zenodo.org/badge/latestdoi/340116033)
+
 # BIONIC-evals
 Evaluation library for [BIONIC](https://github.com/bowang-lab/BIONIC). This library contains code to reproduce the co-annotation prediction, module detection, and gene function prediction evaluations from Fig. 2a, 3a, 4 and 5.
 
