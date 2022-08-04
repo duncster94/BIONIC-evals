@@ -54,14 +54,15 @@ def function_prediction_eval():
                 evaluations.append([config_standard["name"], name, score[0], score[1], score[2]])
 
     evaluations = pd.DataFrame(
-        evaluations, columns=["Standard", "Dataset", "Accuracy", "Macro F1",
-                              "Micro F1"]
+        evaluations, columns=["Standard", "Dataset", "Accuracy", "Macro F1", "Micro F1"]
     )
     State.function_prediction_evaluations = evaluations
 
     # save results
     evaluations.to_csv(
-        State.result_path / Path(f"{State.config_name}_function_prediction.tsv"), sep="\t"
+        State.result_path / Path(f"{State.config_name}_function_prediction.tsv"),
+        sep="\t",
+        index=False,
     )
 
     if State.plot:

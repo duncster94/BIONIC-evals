@@ -62,7 +62,7 @@ def module_detection_eval():
 
     # output results
     evaluations.to_csv(
-        State.result_path / Path(f"{State.config_name}_module_detection.tsv"), sep="\t"
+        State.result_path / Path(f"{State.config_name}_module_detection.tsv"), sep="\t", index=False
     )
 
     if State.plot:

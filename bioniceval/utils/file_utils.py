@@ -30,8 +30,7 @@ def import_standard():
 
 
 def consolidate_datasets(
-        features: Optional[Dict[str, pd.DataFrame]] = [],
-        networks: Optional[Dict[str, nx.Graph]] = []
+    features: Optional[Dict[str, pd.DataFrame]] = [], networks: Optional[Dict[str, nx.Graph]] = []
 ):
     consolidation = State.consolidation
 
@@ -61,7 +60,7 @@ def consolidate_datasets(
 
 
 def consolidate_features(
-        features: Dict[str, pd.DataFrame], genes: List[str]
+    features: Dict[str, pd.DataFrame], genes: List[str]
 ) -> Dict[str, pd.DataFrame]:
     """Consolidates features by ensuring they share the same genes in the same order."""
 
@@ -81,24 +80,3 @@ def consolidate_networks(networks: Dict[str, nx.Graph], genes: List[str]) -> Dic
         new_net.add_edges_from(net.subgraph(genes).edges(data=True))
         consolidated[name] = new_net
     return consolidated
-
-
-def generate_results(combined_table_path):
-    """Generate Combined Results Table for all evaluation tasks in the config."""
-    coannotation_pivot = State.coannotation_evaluations.pivot_table(
-        ["Average Precision", "Maximum F1"], ["Dataset"],
-        "Standard") if "coannotation_evaluations" in dir(State) else pd.DataFrame()
-    coannotation = pd.concat([coannotation_pivot], keys=["Coannotation"], axis=1)
-
-    module_detection_pivot = State.module_detection_evaluations.pivot_table(
-        ["Module Match Score (AMI)", "Adjusted Rand Index(RI)"], ["Dataset"],
-        "Standard") if "module_detection_evaluations" in dir(State) else pd.DataFrame()
-    module_detection = pd.concat([module_detection_pivot], keys=["Module Detection"], axis=1)
-
-    function_prediction_pivot = State.function_prediction_evaluations.pivot_table(
-        ["Accuracy", "Macro F1", "Micro F1"],
-        ["Dataset"], "Standard") if "function_prediction_evaluations" in dir(State) else pd.DataFrame()
-    function_prediction = pd.concat([function_prediction_pivot], keys=["Function Prediction"], axis=1)
-
-    Combined = pd.concat([coannotation, module_detection, function_prediction], axis=1)
-    Combined.to_csv(combined_table_path / Path(f"{State.config_name}_all_results.tsv"), sep="\t")
