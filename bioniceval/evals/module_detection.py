@@ -1,6 +1,8 @@
 import json
+from multiprocessing import Pool
+import os
 import random
-from functools import reduce
+from functools import reduce, partial
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
 from collections import defaultdict
@@ -10,7 +12,7 @@ import pandas as pd
 import networkx as nx
 from scipy.spatial.distance import pdist
 from scipy.cluster.hierarchy import linkage, fcluster, maxdists
-from sklearn.metrics import adjusted_mutual_info_score
+from sklearn.metrics import adjusted_mutual_info_score, adjusted_rand_score
 
 from ..state import State
 from ..utils.file_utils import consolidate_features, consolidate_networks
@@ -43,31 +45,22 @@ def module_detection_eval():
         # invert `standard` dictionary to make sampling more efficient
         inverted_standard = invert_standard(standard)
 
-        # evaluate feature sets and networks
-        # evaluations = defaultdict(list)
-        for i in range(config_standard["samples"]):
+        # evaluate features and networks using multiprocessing
+        with Pool() as p:
+            args = [standard, inverted_standard, features, networks, config_standard, standard_name]
+            _evaluate_partial = partial(_evaluate, args)
+            results = p.map(_evaluate_partial, range(config_standard["samples"]))
 
-            # create sampled standard
-            sampled_genes, labels = sample_standard(standard, inverted_standard)
-
-            # reduce features and networks
-            features_ = consolidate_features(features, sampled_genes)
-            networks_ = consolidate_networks(networks, sampled_genes)
-
-            for name, feat in features_.items():
-                ami_score = evaluate_features(feat, labels, config_standard)
-                evaluations.append([standard_name, name, ami_score])
-
-            for name, network in networks_.items():
-                ami_score = evaluate_network(network, labels, config_standard)
-                evaluations.append([standard_name, name, ami_score])
+        # take the results and store into the results table
+        for res in results:
+            evaluations.extend(res)
 
     evaluations = pd.DataFrame(
         evaluations, columns=["Standard", "Dataset", "Module Match Score (AMI)"]
     )
     State.module_detection_evaluations = evaluations
 
-    # save results
+    # output results
     evaluations.to_csv(
         State.result_path / Path(f"{State.config_name}_module_detection.tsv"), sep="\t"
     )
@@ -190,3 +183,28 @@ def evaluate_network(network: nx.Graph, labels: List[int], config: Dict[str, Any
                     best_score = score
 
     return best_score
+
+
+def _evaluate(args, _):
+    """Wrapper function for running evaluations in in a single process.
+    """
+
+    evaluations = []
+    standard, inverted_standard, features, networks, config_standard, standard_name = args
+
+    # create sampled standard
+    sampled_genes, labels = sample_standard(standard, inverted_standard)
+
+    # reduce features and networks
+    features_ = consolidate_features(features, sampled_genes)
+    networks_ = consolidate_networks(networks, sampled_genes)
+
+    for name, feat in features_.items():
+        ami_score = evaluate_features(feat, labels, config_standard)
+        evaluations.append([standard_name, name, ami_score])
+
+    for name, network in networks_.items():
+        ami_score = evaluate_network(network, labels, config_standard)
+        evaluations.append([standard_name, name, ami_score])
+
+    return evaluations

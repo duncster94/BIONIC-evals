@@ -46,15 +46,16 @@ def function_prediction_eval():
         for name, feat in features.items():
             scores = evaluate_features(feat, standard, config_standard)
             for score in scores:
-                evaluations.append([config_standard["name"], name, score])
+                evaluations.append([config_standard["name"], name, score[0], score[1], score[2]])
 
         for name, net in networks.items():
             scores = evaluate_network(net, standard, config_standard)
             for score in scores:
-                evaluations.append([config_standard["name"], name, score])
+                evaluations.append([config_standard["name"], name, score[0], score[1], score[2]])
 
     evaluations = pd.DataFrame(
-        evaluations, columns=["Standard", "Dataset", "Function Prediction Score (Micro F1)"]
+        evaluations, columns=["Standard", "Dataset", "Accuracy", "Macro F1",
+                              "Micro F1"]
     )
     State.function_prediction_evaluations = evaluations
 
@@ -153,10 +154,10 @@ def core_eval(dataset: pd.DataFrame, standard: pd.DataFrame, config: dict) -> Li
 
         y_pred = csr_matrix(model.predict(X_test))
         y_test = csr_matrix(y_test)
-        # acc = f1_score(y_test, y_pred, average="samples")
-        # macro_f1 = f1_score(y_test, y_pred, average="macro")
+        acc = f1_score(y_test, y_pred, average="samples")
+        macro_f1 = f1_score(y_test, y_pred, average="macro")
         micro_f1 = f1_score(y_test, y_pred, average="micro")
 
-        scores.append(micro_f1)
+        scores.append([acc, macro_f1, micro_f1])
 
     return scores

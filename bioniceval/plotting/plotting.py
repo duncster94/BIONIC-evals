@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.metrics import PrecisionRecallDisplay
 
 from ..state import State
 
@@ -12,21 +13,24 @@ EDGE_COLOUR = "#666666"
 CAPSIZE = 0.05
 
 
-def plot_coannotation():
-    results: pd.DataFrame = State.coannotation_evaluations
-    results = results.melt(ignore_index=False)
-    results["Dataset"] = results.index
-    results.columns = ["Standard", "Average Precision", "Dataset"]
+def plot_coannotation(results: pd.DataFrame):
 
-    out_path = State.result_path / Path(f"{State.config_name}_coannotation.png")
+    # plot AVP
+    out_path = State.result_path / Path(f"{State.config_name}_coannotation_avp.png")
     plot_bars(
         results, "Standard", "Average Precision", "Dataset", "Co-annotation Evaluation", out_path
     )
 
+    # plot maximal F1
+    out_path = State.result_path / Path(f"{State.config_name}_coannotation_maxf1.png")
+    plot_bars(results, "Standard", "Maximal F1", "Dataset", "Co-annotation Evaluation", out_path)
+
 
 def plot_module_detection():
     results: pd.DataFrame = State.module_detection_evaluations
-    out_path = State.result_path / Path(f"{State.config_name}_module_detection.png")
+
+    # plot AMI
+    out_path = State.result_path / Path(f"{State.config_name}_module_detection_AMI.png")
     plot_bars(
         results,
         "Standard",
@@ -39,14 +43,23 @@ def plot_module_detection():
 
 def plot_function_prediction():
     results: pd.DataFrame = State.function_prediction_evaluations
-    out_path = State.result_path / Path(f"{State.config_name}_function_prediction.png")
+
+    # plot micro f1
+    out_path = State.result_path / Path(f"{State.config_name}_function_prediction_micro_f1.png")
     plot_bars(
-        results,
-        "Standard",
-        "Function Prediction Score (Micro F1)",
-        "Dataset",
-        "Gene Function Prediction Evaluation",
-        out_path,
+        results, "Standard", "Micro F1", "Dataset", "Gene Function Prediction Evaluation", out_path,
+    )
+
+    # plot macro f1
+    out_path = State.result_path / Path(f"{State.config_name}_function_prediction_macro_f1.png")
+    plot_bars(
+        results, "Standard", "Macro F1", "Dataset", "Gene Function Prediction Evaluation", out_path,
+    )
+
+    # plot accuracy
+    out_path = State.result_path / Path(f"{State.config_name}_function_prediction_accuracy.png")
+    plot_bars(
+        results, "Standard", "Accuracy", "Dataset", "Gene Function Prediction Evaluation", out_path,
     )
 
 
