@@ -1,8 +1,8 @@
 import json
-import multiprocessing
+from multiprocessing import Pool
 import os
 import random
-from functools import reduce
+from functools import reduce, partial
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
 from collections import defaultdict
@@ -20,6 +20,7 @@ from ..plotting.plotting import plot_module_detection
 
 
 def module_detection_eval():
+
     # keep track of evaluations from all standards
     evaluations = []
 
@@ -45,19 +46,17 @@ def module_detection_eval():
         inverted_standard = invert_standard(standard)
 
         # evaluate features and networks using multiprocessing
-        pool = multiprocessing.Pool(os.cpu_count())
-        inp = [standard, inverted_standard, features, networks, config_standard, standard_name]
-        # each process feeds the required input parameters to do_eva()
-        results = [pool.apply_async(do_eva, (inp,)) for i in range(config_standard["samples"])]
-        # close the pool and wait for the results
-        pool.close()
-        pool.join()
+        with Pool() as p:
+            args = [standard, inverted_standard, features, networks, config_standard, standard_name]
+            _evaluate_partial = partial(_evaluate, args)
+            results = p.map(_evaluate_partial, range(config_standard["samples"]))
+
         # take the results and store into the results table
-        for res in [res.get() for res in results]:
+        for res in results:
             evaluations.extend(res)
 
     evaluations = pd.DataFrame(
-        evaluations, columns=["Standard", "Dataset", "Module Match Score (AMI)", "Adjusted Rand Index(RI)"]
+        evaluations, columns=["Standard", "Dataset", "Module Match Score (AMI)"]
     )
     State.module_detection_evaluations = evaluations
 
@@ -95,7 +94,7 @@ def invert_standard(standard: Dict[str, List[str]]) -> Dict[str, List[str]]:
 
 
 def sample_standard(
-        standard: Dict[str, List[str]], inverted_standard: Dict[str, List[str]]
+    standard: Dict[str, List[str]], inverted_standard: Dict[str, List[str]]
 ) -> Tuple[List[str], List[int]]:
     """Subsamples the modules in the standard to ensure the resulting module set has
     no overlapping modules (this allows clustering metrics like AMI to be used).
@@ -140,7 +139,6 @@ def sample_standard(
 def evaluate_features(features: pd.DataFrame, labels: List[int], config: Dict[str, Any]) -> float:
     # record best AMI score
     best_score = 0
-    best_rand = 0
 
     # iterate over parameter combinations and identify best scoring module set and record score
     for method in config["methods"]:
@@ -154,18 +152,15 @@ def evaluate_features(features: pd.DataFrame, labels: List[int], config: Dict[st
             for t in np.linspace(0, np.max(maxdists(link)), num=config["thresholds"]):
                 cluster_labels = fcluster(link, t)
                 score = adjusted_mutual_info_score(labels, cluster_labels)
-                rand = adjusted_rand_score(labels, cluster_labels)
                 if score > best_score:
                     best_score = score
-                if rand > best_rand:
-                    best_rand = rand
-    return [best_score, best_rand]
+
+    return best_score
 
 
 def evaluate_network(network: nx.Graph, labels: List[int], config: Dict[str, Any]) -> float:
     # record best AMI score
     best_score = 0
-    best_rand = 0
 
     # create adjacency matrix from network and take reciprocal (distances instead of similarities)
     adjacency = nx.to_pandas_adjacency(network).fillna(0)
@@ -184,19 +179,19 @@ def evaluate_network(network: nx.Graph, labels: List[int], config: Dict[str, Any
             for t in np.linspace(0, np.max(maxdists(link)), num=config["thresholds"]):
                 cluster_labels = fcluster(link, t)
                 score = adjusted_mutual_info_score(labels, cluster_labels)
-                rand = adjusted_rand_score(labels, cluster_labels)
                 if score > best_score:
                     best_score = score
-                if rand > best_rand:
-                    best_rand = rand
 
-    return [best_score, best_rand]
+    return best_score
 
 
-def do_eva(inp):
-    # main evaluation function
+def _evaluate(args, _):
+    """Wrapper function for running evaluations in in a single process.
+    """
+
     evaluations = []
-    standard, inverted_standard, features, networks, config_standard, standard_name = inp
+    standard, inverted_standard, features, networks, config_standard, standard_name = args
+
     # create sampled standard
     sampled_genes, labels = sample_standard(standard, inverted_standard)
 
@@ -206,9 +201,10 @@ def do_eva(inp):
 
     for name, feat in features_.items():
         ami_score = evaluate_features(feat, labels, config_standard)
-        evaluations.append([standard_name, name, ami_score[0], ami_score[1]])
+        evaluations.append([standard_name, name, ami_score])
 
     for name, network in networks_.items():
         ami_score = evaluate_network(network, labels, config_standard)
-        evaluations.append([standard_name, name, ami_score[0], ami_score[1]])
+        evaluations.append([standard_name, name, ami_score])
+
     return evaluations

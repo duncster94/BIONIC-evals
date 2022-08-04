@@ -4,7 +4,7 @@ import networkx as nx
 from typing import Dict, Union
 from pathlib import Path
 from sklearn.metrics import average_precision_score
-from sklearn.metrics import (precision_recall_curve, PrecisionRecallDisplay)
+from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 from ..state import State
@@ -48,20 +48,40 @@ def coannotation_eval():
         # add the evaluations of this standard to the coannotation results table
         all_evaluations[config_standard["name"]] = evaluations
 
-    # plotting
-    all_evaluations = pd.DataFrame(all_evaluations)
-    if State.plot:
-        plot_coannotation(all_evaluations)
+    # reorganize `all_evaluations` to use in DataFrames
+    all_evaluations_ = {}
+    avp_plot_data, max_f1_plot_data, dataset_plot_data, standard_plot_data = [], [], [], []
+    for standard, standard_evals in all_evaluations.items():
 
-    # reformat the results and save it to State.coannotation_evaluations
-    all_evaluations = all_evaluations.melt(ignore_index=False)
-    all_evaluations["Dataset"] = all_evaluations.index
-    all_evaluations["Average Precision"] = [x[0] for x in all_evaluations['value']]
-    all_evaluations["Maximum F1"] = [x[3] for x in all_evaluations['value']]
-    all_evaluations["Standard"] = all_evaluations["variable"]
-    all_evaluations.reset_index(inplace=True)
-    all_evaluations = all_evaluations.iloc[:, 3:]
+        if f"Average Precision ({standard})" not in all_evaluations_:
+            all_evaluations_[f"Average Precision ({standard})"] = {}
+        if f"Maximal F1 ({standard})" not in all_evaluations_:
+            all_evaluations_[f"Maximal F1 ({standard})"] = {}
+
+        for dataset, dataset_evals in standard_evals.items():
+            avp = dataset_evals["Average Precision"]
+            max_f1 = dataset_evals["Maximal F1"]
+
+            all_evaluations_[f"Average Precision ({standard})"][dataset] = avp
+            all_evaluations_[f"Maximal F1 ({standard})"][dataset] = max_f1
+
+            avp_plot_data.append(avp)
+            max_f1_plot_data.append(max_f1)
+            dataset_plot_data.append(dataset)
+            standard_plot_data.append(standard)
+
+    plot_df = pd.DataFrame(
+        [dataset_plot_data, standard_plot_data, avp_plot_data, max_f1_plot_data]
+    ).T
+    plot_df.columns = ["Dataset", "Standard", "Average Precision", "Maximal F1"]
+
+    all_evaluations = pd.DataFrame(all_evaluations_)
     State.coannotation_evaluations = all_evaluations
+
+    # plotting
+    if State.plot:
+        print(plot_df.head())
+        plot_coannotation(plot_df)
 
     # output results
     all_evaluations.to_csv(
@@ -78,16 +98,16 @@ def evaluate_features(features: pd.DataFrame, standard: pd.DataFrame) -> float:
     sim = cosine_similarity(features.values)
     features = pd.DataFrame(sim, index=features.index, columns=features.index).fillna(0)
     avp = compute_average_precision(features, standard)
-    prc = compute_max_f1_core(features, standard)
-    return [avp] + prc
+    max_f1 = compute_max_f1(features, standard)
+    return {"Average Precision": avp, "Maximal F1": max_f1}
 
 
 def evaluate_network(network: nx.Graph, standard: pd.DataFrame) -> float:
     # map network to DataFrame for pairwise lookup
     network = nx.to_pandas_adjacency(network)
     avp = compute_average_precision(network, standard)
-    prc = compute_max_f1_core(network, standard)
-    return [avp] + prc
+    max_f1 = compute_max_f1(network, standard)
+    return {"Average Precision": avp, "Maximal F1": max_f1}
 
 
 def compute_average_precision(dataset: pd.DataFrame, standard: pd.DataFrame) -> float:
@@ -99,14 +119,15 @@ def compute_average_precision(dataset: pd.DataFrame, standard: pd.DataFrame) -> 
     return avp
 
 
-def compute_max_f1_core(dataset: pd.DataFrame, standard: pd.DataFrame) -> float:
+def compute_max_f1(dataset: pd.DataFrame, standard: pd.DataFrame) -> float:
     y_true = standard.iloc[:, 2].values
-    # NOTE: `lookup` is depreciated for no good reason, I suspect it will be undepreciated
-    # soon, see here: https://github.com/pandas-dev/pandas/issues/39171
-    probas_pred = dataset.lookup(standard.iloc[:, 0], standard.iloc[:, 1])
-    # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_curve.html
-    precision, recall, thresholds = precision_recall_curve(y_true, probas_pred)
+    y_score = dataset.lookup(standard.iloc[:, 0], standard.iloc[:, 1])
+    precision, recall, _ = precision_recall_curve(y_true, y_score)
+
+    # compute f1 scores
     denom = recall + precision
-    f1_scores = np.divide(2 * recall * precision, denom, out=np.zeros_like(denom), where=(denom != 0))
+    f1_scores = np.divide(
+        2 * recall * precision, denom, out=np.zeros_like(denom), where=(denom != 0)
+    )
     max_f1 = np.max(f1_scores)
-    return [precision, recall, max_f1]
+    return max_f1
