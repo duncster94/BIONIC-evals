@@ -48,44 +48,34 @@ def coannotation_eval():
         # add the evaluations of this standard to the coannotation results table
         all_evaluations[config_standard["name"]] = evaluations
 
-    # reorganize `all_evaluations` to use in DataFrames
-    all_evaluations_ = {}
+    # reorganize `all_evaluations` to use in DataFrame
     avp_plot_data, max_f1_plot_data, dataset_plot_data, standard_plot_data = [], [], [], []
     for standard, standard_evals in all_evaluations.items():
-
-        if f"Average Precision ({standard})" not in all_evaluations_:
-            all_evaluations_[f"Average Precision ({standard})"] = {}
-        if f"Maximal F1 ({standard})" not in all_evaluations_:
-            all_evaluations_[f"Maximal F1 ({standard})"] = {}
 
         for dataset, dataset_evals in standard_evals.items():
             avp = dataset_evals["Average Precision"]
             max_f1 = dataset_evals["Maximal F1"]
-
-            all_evaluations_[f"Average Precision ({standard})"][dataset] = avp
-            all_evaluations_[f"Maximal F1 ({standard})"][dataset] = max_f1
 
             avp_plot_data.append(avp)
             max_f1_plot_data.append(max_f1)
             dataset_plot_data.append(dataset)
             standard_plot_data.append(standard)
 
-    plot_df = pd.DataFrame(
-        [dataset_plot_data, standard_plot_data, avp_plot_data, max_f1_plot_data]
+    all_evaluations = pd.DataFrame(
+        [standard_plot_data, dataset_plot_data, avp_plot_data, max_f1_plot_data]
     ).T
-    plot_df.columns = ["Dataset", "Standard", "Average Precision", "Maximal F1"]
+    all_evaluations.columns = ["Standard", "Dataset", "Average Precision", "Maximal F1"]
 
-    all_evaluations = pd.DataFrame(all_evaluations_)
+    all_evaluations = pd.DataFrame(all_evaluations)
     State.coannotation_evaluations = all_evaluations
 
     # plotting
     if State.plot:
-        print(plot_df.head())
-        plot_coannotation(plot_df)
+        plot_coannotation(all_evaluations)
 
     # output results
     all_evaluations.to_csv(
-        State.result_path / Path(f"{State.config_name}_coannotation.tsv"), sep="\t"
+        State.result_path / Path(f"{State.config_name}_coannotation.tsv"), sep="\t", index=False
     )
 
 
