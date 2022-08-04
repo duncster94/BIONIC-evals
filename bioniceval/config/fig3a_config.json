@@ -1,0 +1,79 @@
+{
+    "networks": [
+        {
+            "name": "Union",
+            "path": "bioniceval/datasets/Union.txt",
+            "delimiter": " "
+        },
+        {
+            "name": "iCell",
+            "path": "bioniceval/datasets/iCell.txt",
+            "delimiter": " "
+        }
+    ],
+    "features": [
+        {
+            "name": "deepNF",
+            "path": "bioniceval/datasets/deepNF.csv",
+            "delimiter": ","
+        },
+        {
+            "name": "Mashup",
+            "path": "bioniceval/datasets/Mashup.csv",
+            "delimiter": ","
+        },
+        {
+            "name": "multi-node2vec",
+            "path": "bioniceval/datasets/multi-node2vec.csv",
+            "delimiter": ","
+        },
+        {
+            "name": "BIONIC",
+            "path": "bioniceval/datasets/yeast_BIONIC_features.csv",
+            "delimiter": ","
+        }
+    ],
+    "standards": [
+        {
+            "name": "IntAct Fig 3a",
+            "task": "coannotation",
+            "path": "bioniceval/standards/yeast-IntAct-complex-coannotation.csv",
+            "delimiter": ","
+        },
+        {
+            "name": "IntAct Fig 3a",
+            "task": "module_detection",
+            "path": "bioniceval/standards/yeast-IntAct-complex-modules.json",
+            "samples": 10,
+            "methods": [
+                "average",
+                "single",
+                "complete"
+            ],
+            "metrics": [
+                "euclidean",
+                "cosine"
+            ],
+            "thresholds": 500
+        },
+        {
+            "name": "IntAct Fig 3a",
+            "task": "function_prediction",
+            "path": "bioniceval/standards/yeast-IntAct-complex-labels.json",
+            "test_size": 0.1,
+            "folds": 5,
+            "trials": 10,
+            "gamma": {
+                "minimum": 1e-6,
+                "maximum": 1e-1,
+                "samples": 10
+            },
+            "regularization": {
+                "minimum": 1e-3,
+                "maximum": 1e4,
+                "samples": 30
+            }
+        }
+    ],
+    "consolidation": "union"
+}
